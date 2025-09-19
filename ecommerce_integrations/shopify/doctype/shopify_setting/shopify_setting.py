@@ -146,6 +146,32 @@ def setup_custom_fields():
 				print_hide=1,
 			)
 		],
+		"Sales Order": [
+			dict(
+				fieldname=ORDER_ID_FIELD,
+				label="Shopify Order Id",
+				fieldtype="Small Text",
+				insert_after="title",
+				read_only=1,
+				print_hide=1,
+			),
+			dict(
+				fieldname=ORDER_NUMBER_FIELD,
+				label="Shopify Order Number",
+				fieldtype="Small Text",
+				insert_after=ORDER_ID_FIELD,
+				read_only=1,
+				print_hide=1,
+			),
+			dict(
+				fieldname=ORDER_STATUS_FIELD,
+				label="Shopify Order Status",
+				fieldtype="Small Text",
+				insert_after=ORDER_NUMBER_FIELD,
+				read_only=1,
+				print_hide=1,
+			),
+		],
 		"Shopify Order": [
 			dict(
 				fieldname=ORDER_ID_FIELD,
