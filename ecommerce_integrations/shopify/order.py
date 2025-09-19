@@ -16,6 +16,7 @@ from ecommerce_integrations.shopify.constants import (
 	ORDER_NUMBER_FIELD,
 	ORDER_STATUS_FIELD,
 	SETTING_DOCTYPE,
+	SALES_ORDER_DOCTYPE
 )
 from ecommerce_integrations.shopify.customer import ShopifyCustomer
 from ecommerce_integrations.shopify.product import create_items_if_not_exist, get_item_code
@@ -34,8 +35,8 @@ def sync_sales_order(payload, request_id=None):
 	frappe.set_user("Administrator")
 	frappe.flags.request_id = request_id
 
-	if frappe.db.get_value("Sales Order", filters={ORDER_ID_FIELD: cstr(order["id"])}):
-		create_shopify_log(status="Invalid", message="Sales order already exists, not synced")
+	if frappe.db.get_value(SALES_ORDER_DOCTYPE, filters={ORDER_ID_FIELD: cstr(order["id"])}):
+		create_shopify_log(status="Invalid", message="Shopify order already exists, not synced")
 		return
 	try:
 		shopify_customer = order.get("customer") if order.get("customer") is not None else {}
@@ -59,28 +60,31 @@ def sync_sales_order(payload, request_id=None):
 		create_shopify_log(status="Success")
 
 
-def create_order(order, setting, company=None):
+def create_order(order, setting, sales_order_dt="Shopify Order", company=None):
 	# local import to avoid circular dependencies
 	from ecommerce_integrations.shopify.fulfillment import create_delivery_note
 	from ecommerce_integrations.shopify.invoice import create_sales_invoice
 
-	so = create_sales_order(order, setting, company)
-	if so:
+	so = create_sales_order(order, setting, sales_order_dt, company)
+	if sales_order_dt == "Sales Order" and so:
+		print("Creating Sales Invoice and Delivery Note")
 		if order.get("financial_status") == "paid":
 			create_sales_invoice(order, setting, so)
 
 		if order.get("fulfillments"):
 			create_delivery_note(order, setting, so)
 
+def get_custom_item_prefixes():
+    prefixes = frappe.get_single_value("Selling Settings", "custom_item_prefixes")
+    return [p.strip().lower() for p in prefixes.split(",")] if prefixes else []
 
-def create_sales_order(shopify_order, setting, company=None):
+def create_sales_order(shopify_order, setting, sales_order_dt="Shopify Order", company=None):
 	customer = setting.default_customer
 	if shopify_order.get("customer", {}):
 		if customer_id := shopify_order.get("customer", {}).get("id"):
 			customer = frappe.db.get_value("Customer", {CUSTOMER_ID_FIELD: customer_id}, "name")
 
-	so = frappe.db.get_value("Sales Order", {ORDER_ID_FIELD: shopify_order.get("id")}, "name")
-
+	so = frappe.db.get_value(sales_order_dt, {ORDER_ID_FIELD: shopify_order.get("id")}, "name")
 	if not so:
 		items = get_order_items(
 			shopify_order.get("line_items"),
@@ -102,9 +106,17 @@ def create_sales_order(shopify_order, setting, company=None):
 			return ""
 
 		taxes = get_order_taxes(shopify_order, setting, items)
+		custom_prefixes = get_custom_item_prefixes()
+		is_custom_order = False
+		for item in items:
+			item_name = str(item.get("item_name") or "")
+
+			if any(item_name.lower().startswith(prefix) for prefix in custom_prefixes):
+				is_custom_order = True
+    
 		so = frappe.get_doc(
 			{
-				"doctype": "Sales Order",
+				"doctype": sales_order_dt,
 				"naming_series": setting.sales_order_series or "SO-Shopify-",
 				ORDER_ID_FIELD: str(shopify_order.get("id")),
 				ORDER_NUMBER_FIELD: shopify_order.get("name"),
@@ -117,6 +129,7 @@ def create_sales_order(shopify_order, setting, company=None):
 				"items": items,
 				"taxes": taxes,
 				"tax_category": get_dummy_tax_category(),
+				"is_custom_order": is_custom_order
 			}
 		)
 
@@ -124,6 +137,7 @@ def create_sales_order(shopify_order, setting, company=None):
 			so.update({"company": company, "status": "Draft"})
 		so.flags.ignore_mandatory = True
 		so.flags.shopiy_order_json = json.dumps(shopify_order)
+		
 		so.save(ignore_permissions=True)
 		so.submit()
 
@@ -131,7 +145,7 @@ def create_sales_order(shopify_order, setting, company=None):
 			so.add_comment(text=f"Order Note: {shopify_order.get('note')}")
 
 	else:
-		so = frappe.get_doc("Sales Order", so)
+		so = frappe.get_doc(sales_order_dt, so)
 
 	return so
 
@@ -351,9 +365,9 @@ def update_taxes_with_shipping_lines(taxes, shipping_lines, setting, items, taxe
 
 def get_sales_order(order_id):
 	"""Get ERPNext sales order using shopify order id."""
-	sales_order = frappe.db.get_value("Sales Order", filters={ORDER_ID_FIELD: order_id})
-	if sales_order:
-		return frappe.get_doc("Sales Order", sales_order)
+	shopify_order = frappe.db.get_value(SALES_ORDER_DOCTYPE, filters={ORDER_ID_FIELD: order_id})
+	if shopify_order:
+		return frappe.get_doc(SALES_ORDER_DOCTYPE, shopify_order)
 
 
 def cancel_order(payload, request_id=None):
@@ -377,7 +391,7 @@ def cancel_order(payload, request_id=None):
 		sales_order = get_sales_order(order_id)
 
 		if not sales_order:
-			create_shopify_log(status="Invalid", message="Sales Order does not exist")
+			create_shopify_log(status="Invalid", message="Shopify Order does not exist")
 			return
 
 		sales_invoice = frappe.db.get_value("Sales Invoice", filters={ORDER_ID_FIELD: order_id})
@@ -392,7 +406,7 @@ def cancel_order(payload, request_id=None):
 		if not sales_invoice and not delivery_notes and sales_order.docstatus == 1:
 			sales_order.cancel()
 		else:
-			frappe.db.set_value("Sales Order", sales_order.name, ORDER_STATUS_FIELD, order_status)
+			frappe.db.set_value(SALES_ORDER_DOCTYPE, sales_order.name, ORDER_STATUS_FIELD, order_status)
 
 	except Exception as e:
 		create_shopify_log(status="Error", exception=e)
@@ -433,3 +447,21 @@ def _fetch_old_orders(from_time, to_time):
 			# Using generator instead of fetching all at once is better for
 			# avoiding rate limits and reducing resource usage.
 			yield order.to_dict()
+
+@frappe.whitelist()
+def fetch_and_create_order(shopify_order_id):
+	return _fetch_and_create_order(shopify_order_id)
+
+@temp_shopify_session
+def _fetch_and_create_order(shopify_order_id):
+	try:
+		shopify_order = Order.find(id=shopify_order_id)
+		if shopify_order:
+			shopify_order = shopify_order[0].to_dict()
+			setting = frappe.get_doc(SETTING_DOCTYPE)
+			create_order(shopify_order, setting, sales_order_dt="Sales Order")
+			frappe.db.commit()
+		else:
+			create_shopify_log(status="Invalid", message=f"Shopify order with ID {shopify_order_id} not found.")
+	except Exception as e:
+		create_shopify_log(status="Error", exception=e)

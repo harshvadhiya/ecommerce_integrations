@@ -25,7 +25,7 @@ def prepare_sales_invoice(payload, request_id=None):
 			create_sales_invoice(order, setting, sales_order)
 			create_shopify_log(status="Success")
 		else:
-			create_shopify_log(status="Invalid", message="Sales Order not found for syncing sales invoice.")
+			create_shopify_log(status="Invalid", message="Shopify Order not found for syncing sales invoice.")
 	except Exception as e:
 		create_shopify_log(status="Error", exception=e, rollback=True)
 

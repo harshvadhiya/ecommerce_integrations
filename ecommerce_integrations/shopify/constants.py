@@ -27,7 +27,7 @@ EVENT_MAPPER = {
 SHOPIFY_VARIANTS_ATTR_LIST = ["option1", "option2", "option3"]
 
 # custom fields
-
+SALES_ORDER_DOCTYPE = "Shopify Order"
 CUSTOMER_ID_FIELD = "shopify_customer_id"
 ORDER_ID_FIELD = "shopify_order_id"
 ORDER_NUMBER_FIELD = "shopify_order_number"

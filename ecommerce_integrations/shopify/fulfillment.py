@@ -27,7 +27,7 @@ def prepare_delivery_note(payload, request_id=None):
 			create_delivery_note(order, setting, sales_order)
 			create_shopify_log(status="Success")
 		else:
-			create_shopify_log(status="Invalid", message="Sales Order not found for syncing delivery note.")
+			create_shopify_log(status="Invalid", message="Shopify Order not found for syncing delivery note.")
 	except Exception as e:
 		create_shopify_log(status="Error", exception=e, rollback=True)
 

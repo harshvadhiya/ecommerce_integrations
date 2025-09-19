@@ -146,7 +146,7 @@ def setup_custom_fields():
 				print_hide=1,
 			)
 		],
-		"Sales Order": [
+		"Shopify Order": [
 			dict(
 				fieldname=ORDER_ID_FIELD,
 				label="Shopify Order Id",
@@ -172,7 +172,7 @@ def setup_custom_fields():
 				print_hide=1,
 			),
 		],
-		"Sales Order Item": [
+		"Shopify Order Item": [
 			dict(
 				fieldname=ORDER_ITEM_DISCOUNT_FIELD,
 				label="Shopify Discount per unit",
