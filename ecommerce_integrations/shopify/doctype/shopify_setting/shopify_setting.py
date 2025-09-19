@@ -207,6 +207,15 @@ def setup_custom_fields():
 				read_only=1,
 			),
 		],
+		"Sales Order Item": [
+			dict(
+				fieldname=ORDER_ITEM_DISCOUNT_FIELD,
+				label="Shopify Discount per unit",
+				fieldtype="Float",
+				insert_after="discount_and_margin",
+				read_only=1,
+			),
+		],
 		"Delivery Note": [
 			dict(
 				fieldname=ORDER_ID_FIELD,
