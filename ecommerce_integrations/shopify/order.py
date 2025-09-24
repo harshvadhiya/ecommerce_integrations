@@ -365,9 +365,9 @@ def update_taxes_with_shipping_lines(taxes, shipping_lines, setting, items, taxe
 
 def get_sales_order(order_id):
 	"""Get ERPNext sales order using shopify order id."""
-	shopify_order = frappe.db.get_value(SALES_ORDER_DOCTYPE, filters={ORDER_ID_FIELD: order_id})
+	shopify_order = frappe.db.get_value("Sales Order", filters={ORDER_ID_FIELD: order_id})
 	if shopify_order:
-		return frappe.get_doc(SALES_ORDER_DOCTYPE, shopify_order)
+		return frappe.get_doc("Sales Order", shopify_order)
 
 
 def cancel_order(payload, request_id=None):
