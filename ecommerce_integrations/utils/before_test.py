@@ -41,10 +41,21 @@ def create_tax_account():
 	company = "Wind Power LLC"
 	account_name = "Output Tax GST"
 
+	# Skip if the test company does not exist on this site
+	if not frappe.db.exists("Company", company):
+		return
+
+	# Skip if account already exists
+	if frappe.db.exists("Account", {"account_name": account_name, "company": company}):
+		return
+
 	parent = (
 		frappe.db.get_value("Account", {"company": company, "account_type": "Tax", "is_group": 1})
 		or "Duties and Taxes - WP"
 	)
+
+	if not frappe.db.exists("Account", parent):
+		return
 
 	frappe.get_doc(
 		{
