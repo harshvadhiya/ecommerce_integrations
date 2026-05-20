@@ -93,15 +93,8 @@ def get_callback_url() -> str:
 
 @frappe.whitelist(allow_guest=True)
 def store_request_data() -> None:
-	if frappe.request:
-		hmac_header = frappe.get_request_header("X-Shopify-Hmac-Sha256")
-
-		_validate_request(frappe.request, hmac_header)
-
-		data = json.loads(frappe.request.data)
-		event = frappe.request.headers.get("X-Shopify-Topic")
-
-		process_request(data, event)
+	# Shopify sync disabled — webhooks are intentionally ignored
+	return
 
 
 def process_request(data, event):
